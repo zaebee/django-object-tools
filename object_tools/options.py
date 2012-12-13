@@ -28,11 +28,20 @@ class ObjectTool(object):
             self.modeladmin_changelist_view = self.modeladmin.changelist_view
             self.modeladmin.changelist_view = self.changelist_view
 
+            self.modeladmin_change_view = self.modeladmin.change_view
+            self.modeladmin.change_view = self.change_view
+
     def changelist_view(self, request, extra_context=None):
         """
         Simple wrapper to pass request to admin/change_list.html
         """
         return self.modeladmin_changelist_view(request, extra_context={'request': request})
+
+    def change_view(self, request, object_id, extra_context=None):
+        """
+        Simple wrapper to pass request to admin/change_form.html
+        """
+        return self.modeladmin_change_view(request, object_id, extra_context={'request': request})
 
     def construct_form(self, request):
         """
@@ -75,10 +84,14 @@ class ObjectTool(object):
 
         return media
 
-    def reverse(self):
+    def reverse(self, object_id=None):
         info = self.model._meta.app_label, self.model._meta.module_name, \
                 self.name
-        return reverse('object-tools:%s_%s_%s' % info)
+        if object_id:
+            return reverse('object-tools:%s_%s_%s' % info,
+                           kwargs={'object_id': object_id})
+        return reverse('object-tools:%s_%s_%s' % info,
+                       kwargs={'object_id': self.object_id})
 
     def _urls(self):
         """
@@ -87,9 +100,10 @@ class ObjectTool(object):
         info = self.model._meta.app_label, self.model._meta.module_name, \
                 self.name
         urlpatterns = patterns('',
-            url(r'^%s/$' % self.name,
-                self._view,
+            url(r'^%s/$' % self.name, self._view),
+            url(r'^%s/(?P<object_id>[\d]+)/$' % self.name, self._view,
                 name='%s_%s_%s' % info),
+
         )
         return urlpatterns
     urls = property(_urls)
@@ -124,11 +138,11 @@ class ObjectTool(object):
         return context
 
     @csrf_protect_m
-    def _view(self, request, extra_context=None):
+    def _view(self, request, object_id=None, extra_context=None):
         """
         View wrapper taking care of houskeeping for painless form rendering.
         """
         if not self.has_permission(request.user):
             raise PermissionDenied
 
-        return self.view(request, self.construct_context(request))
+        return self.view(request, object_id, self.construct_context(request))

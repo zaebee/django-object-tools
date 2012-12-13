@@ -8,10 +8,11 @@ register = template.Library()
 
 
 @register.inclusion_tag('object_tools/inclusion_tags/object_tools.html', takes_context=True)
-def object_tools(context, model, user, exclude=None):
+def object_tools(context, model, user, exclude=None, object_id=None):
     if inspect.isclass(model):
         model_class = model
     else:
+        object_id = object_id or model.pk
         model_class = model.__class__
 
     if tools._registry.has_key(model_class):
@@ -27,8 +28,9 @@ def object_tools(context, model, user, exclude=None):
     allowed_tools = []
     for tool in object_tools:
         if tool.has_permission(user):
+            tool.object_id = object_id
             allowed_tools.append(tool)
-    
+
     ret_dict = {'object_tools': allowed_tools}
     if context.has_key('request'):
        ret_dict.update({
